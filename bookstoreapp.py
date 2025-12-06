@@ -102,7 +102,7 @@ def init_db():
     # 1. Attempt to insert the default admin user ('library') if it doesn't exist.
     try:
         c.execute("INSERT INTO users (username, email, password, is_admin) VALUES (?, ?, ?, ?)", 
-                  ('library', 'admin@bookstore.com', '1234', 1))
+                  ('Admin', 'admin@bookstore.com', '12345', 1))
         conn.commit()
     except sqlite3.IntegrityError:
         pass
