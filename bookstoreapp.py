@@ -2,6 +2,7 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import time
+import pytz
 
 # --- CUSTOM DESIGN & STYLING ---
 # Setting Streamlit page config and custom CSS for a cleaner look
@@ -41,7 +42,7 @@ st.markdown(
         border: none;
         border-radius: 5px;
     }
-    /* Style for 'Out of Stock' text in tables (Styling relies on Streamlit version compatibility) */
+    /* Style for 'Out of Stock' text in tables (Plain text fallback) */
     .out-of-stock {
         color: #D62828; /* Red */
         font-weight: 700;
@@ -60,7 +61,7 @@ st.markdown(
 DB_NAME = 'bookstore.db'
 
 def init_db():
-    """Initializes the SQLite database and creates the tables."""
+    """Initializes the SQLite database, creates tables, and ensures only one admin exists (UPDATED)."""
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
@@ -98,13 +99,25 @@ def init_db():
         )
     """)
     
-    # Ensure the default admin user ('library') exists
+    # 1. Attempt to insert the default admin user ('library') if it doesn't exist.
     try:
         c.execute("INSERT INTO users (username, email, password, is_admin) VALUES (?, ?, ?, ?)", 
                   ('library', 'admin@bookstore.com', '1234', 1))
         conn.commit()
     except sqlite3.IntegrityError:
         pass
+
+    # 2. DELETE THE OLD ADMIN IF A NEW ADMIN ACCOUNT WAS CREATED MANUALLY
+    
+    # Check if a manually created admin exists (i.e., if admin count is > 1)
+    c.execute("SELECT COUNT(id) FROM users WHERE is_admin = 1")
+    admin_count = c.fetchone()[0]
+
+    if admin_count > 1:
+        # If a new admin account exists, delete the old, hardcoded 'library' account
+        # We ensure we delete only the original hardcoded account
+        c.execute("DELETE FROM users WHERE username = 'library' AND email = 'admin@bookstore.com'")
+        conn.commit()
 
     conn.commit()
     conn.close()
@@ -210,7 +223,7 @@ def get_out_of_stock_books():
     return df
 
 def get_user_orders(username):
-    """Retrieves all orders placed by a specific user."""
+    """Retrieves all orders placed by a specific user and converts timestamp to IST."""
     conn = sqlite3.connect(DB_NAME)
     query = f"""
     SELECT 
@@ -226,6 +239,22 @@ def get_user_orders(username):
     """
     df = pd.read_sql_query(query, conn, params=(username,))
     conn.close()
+    
+    # --- TIME ZONE CONVERSION (FIX) ---
+    if not df.empty:
+        # 1. Convert the 'Order_Time' column to datetime objects
+        df['Order_Time'] = pd.to_datetime(df['Order_Time'])
+        
+        # 2. Assume the time stored in SQLite is UTC
+        df['Order_Time'] = df['Order_Time'].dt.tz_localize(pytz.utc)
+        
+        # 3. Convert the localized time to IST
+        df['Order_Time'] = df['Order_Time'].dt.tz_convert('Asia/Kolkata')
+        
+        # 4. Format for clean display
+        df['Order_Time'] = df['Order_Time'].dt.strftime('%Y-%m-%d %H:%M:%S IST')
+    # ------------------------------------
+    
     return df
 
 def record_order_submission(cart_items, username):
@@ -361,7 +390,7 @@ def display_books(df):
     # --- Transform copies column (FIXED) ---
     def format_copies(copies):
         if str(copies) == '0':
-            # FIX: Return plain text only to avoid error in older Streamlit versions
+            # FIX: Return plain text only
             return 'Out of Stock' 
         return str(copies)
 
@@ -513,6 +542,14 @@ def main_app():
         orders_df = pd.read_sql_query(query, conn)
         conn.close()
         
+        # --- TIME ZONE CONVERSION (FIX for Admin View) ---
+        if not orders_df.empty:
+            orders_df['Order_Time'] = pd.to_datetime(orders_df['Order_Time'])
+            orders_df['Order_Time'] = orders_df['Order_Time'].dt.tz_localize(pytz.utc)
+            orders_df['Order_Time'] = orders_df['Order_Time'].dt.tz_convert('Asia/Kolkata')
+            orders_df['Order_Time'] = orders_df['Order_Time'].dt.strftime('%Y-%m-%d %H:%M:%S IST')
+        # ----------------------------------------------------
+
         pending_orders = orders_df[orders_df['Status'] == 'Pending']
 
         # --- PENDING ORDERS SECTION ---
