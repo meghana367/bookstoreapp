@@ -60,7 +60,7 @@ The application will automatically open in your default web browser (usually at 
 The application creates and uses a local bookstore.db file in the project root.
 | Role | Username | Password | Notes |
 | :--- | :--- | :--- | :--- |
-| **Admin** | `library` | `1234` | Hardcoded Admin account for management access. |
+| **Admin** | `Admin` | `12345` | Hardcoded Admin account for management access. |
 | **User** | (New Account) | (New Password) | Register a new account via the Register tab. |
 
 **Database Note:** Since the database is SQLite, if you delete the bookstore.db file and rerun the app, all existing data (users, books, orders) will be reset.
