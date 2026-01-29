@@ -13,7 +13,7 @@ The application implements full CRUD (Create, Read, Update, Delete) for book inv
 
 **View Books:** All users can view the list of available books.
 
-## 💼 Admin Features (Username: library, Password: 1234)
+## 💼 Admin Features (Username: Admin, Password: 12345)
 **Manage Books (CRUD):** Admins can add new books, update existing book details (name, author, copies), and delete books from the system.
 
 **View Orders:** A dedicated interface to view all pending orders placed by users.
